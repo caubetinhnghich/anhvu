@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>20.10 · Trịnh Khánh Huyền</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ── design tokens ── */
+    :root {
+      --cream:    #fdf6f0;
+      --peach:    #f9c5a8;
+      --pink:     #f4a7b9;
+      --rose:     #e8738a;
+      --lavender: #c9b8e8;
+      --purple:   #9b7fcf;
+      --text:     #4a3550;
+      --muted:    #9a7fa0;
+      --white:    #ffffff;
+      --shadow:   0 8px 32px rgba(155, 127, 207, 0.15);
+      --radius:   24px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', system-ui, sans-serif;
+      background: linear-gradient(160deg, #fdf0f5 0%, #f5f0fd 50%, #fdf6f0 100%);
+      min-height: 100vh;
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ════════════════════════════════
+       CANVAS – falling particles
+    ════════════════════════════════ */
+    #particle-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* ════════════════════════════════
+       INTRO SCREEN
+    ════════════════════════════════ */
+    #intro {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 32px 24px;
+      text-align: center;
+      position: relative;
+    }
+
+    /* decorative SVG corners */
+    .deco { position: absolute; pointer-events: none; opacity: .55; }
+
+    .date-big {
+      font-size: clamp(80px, 22vw, 152px);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -3px;
+      background: linear-gradient(135deg, var(--rose), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .date-sub {
+      font-size: clamp(14px, 4vw, 20px);
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .btn-open {
+      margin-top: 28px;
+      padding: 16px 44px;
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--white);
+      background: linear-gradient(135deg, var(--rose), var(--purple));
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 24px rgba(232, 115, 138, 0.42);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-open:hover  { transform: translateY(-3px) scale(1.04); box-shadow: 0 12px 32px rgba(232,115,138,.52); }
+    .btn-open:active { transform: scale(.97); }
+
+    /* ════════════════════════════════
+       MAIN CONTENT
+    ════════════════════════════════ */
+    #main-content {
+      display: none;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+    }
+    #main-content.visible { display: block; }
+
+    /* ── toggle button bar ── */
+    .top-bar {
+      display: flex;
+      justify-content: center;
+      padding: 36px 0 8px;
+    }
+    .btn-toggle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 22px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--purple);
+      background: rgba(201,184,232,.18);
+      border: 2px solid var(--lavender);
+      border-radius: 50px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-toggle:hover { background: rgba(201,184,232,.32); }
+
+    /* ── main greeting card ── */
+    .main-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 40px 36px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      margin: 28px 0 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* soft glow blob */
+    .main-card::before {
+      content: '';
+      position: absolute;
+      top: -50px; right: -50px;
+      width: 180px; height: 180px;
+      background: radial-gradient(circle, rgba(244,167,185,.28) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .card-to   { font-size: 12px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .card-name {
+      font-size: clamp(24px, 6vw, 34px);
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--rose), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 22px;
+    }
+
+    .card-pulse {
+      display: inline-block;
+      font-size: 34px;
+      margin-bottom: 18px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { transform: scale(1); }
+      35%      { transform: scale(1.22); }
+      65%      { transform: scale(1.1); }
+    }
+
+    .card-body { font-size: 16px; line-height: 1.85; color: var(--text); text-align: left; }
+    .card-body p + p { margin-top: 12px; }
+
+    /* ── 3 mini cards ── */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 500px) { .cards-row { grid-template-columns: 1fr; } }
+
+    .mini-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 24px 14px 20px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      cursor: pointer;
+      transition: transform .18s, box-shadow .18s;
+      position: relative;
+    }
+    .mini-card:hover { transform: translateY(-5px); box-shadow: 0 14px 38px rgba(155,127,207,.22); }
+    .mini-card.pop    { animation: pop .42s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      28%  { transform: scale(.88) rotate(-4deg); }
+      55%  { transform: scale(1.14) rotate(2.5deg); }
+      78%  { transform: scale(.97); }
+      100% { transform: scale(1); }
+    }
+    /* accent top border */
+    .mini-card:nth-child(1) { border-top: 4px solid var(--pink); }
+    .mini-card:nth-child(2) { border-top: 4px solid var(--lavender); }
+    .mini-card:nth-child(3) { border-top: 4px solid var(--peach); }
+
+    .mini-icon  { font-size: 30px; display: block; margin-bottom: 10px; }
+    .mini-label { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .mini-text  { font-size: 13.5px; line-height: 1.65; color: var(--text); }
+
+    /* ── message box ── */
+    .msg-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 28px;
+    }
+    .msg-heading { font-size: 17px; font-weight: 800; margin-bottom: 5px; }
+    .msg-hint    { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+
+    .msg-textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #ede5f5;
+      border-radius: 16px;
+      font-family: inherit;
+      font-size: 15px;
+      color: var(--text);
+      background: #fdf9ff;
+      resize: vertical;
+      min-height: 100px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .msg-textarea:focus { border-color: var(--lavender); }
+
+    .msg-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+
+    .btn-send {
+      padding: 12px 28px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--white);
+      background: linear-gradient(135deg, var(--rose), var(--purple));
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(155,127,207,.3);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-send:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(155,127,207,.4); }
+
+    .btn-erase {
+      padding: 12px 20px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--muted);
+      background: transparent;
+      border: 2px solid #ede5f5;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-erase:hover { border-color: var(--lavender); color: var(--purple); }
+
+    /* saved message block */
+    .msg-saved {
+      display: none;
+      margin-top: 20px;
+      padding: 18px 20px;
+      background: linear-gradient(135deg, rgba(244,167,185,.13), rgba(201,184,232,.13));
+      border-left: 4px solid var(--pink);
+      border-radius: 14px;
+    }
+    .msg-saved.on { display: block; }
+    .saved-label  { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .saved-text   { font-size: 15px; line-height: 1.75; color: var(--text); white-space: pre-wrap; }
+
+    /* ── footer ── */
+    footer {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      padding-top: 8px;
+    }
+
+    /* ── cursor hearts (desktop) ── */
+    .cursor-heart {
+      position: fixed;
+      pointer-events: none;
+      font-size: 15px;
+      z-index: 9999;
+      animation: floatUp 1.1s ease forwards;
+      transform-origin: center;
+    }
+    @keyframes floatUp {
+      0%   { opacity: .8; transform: translateY(0) scale(1); }
+      100% { opacity: 0;  transform: translateY(-55px) scale(.3); }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="particle-canvas"></canvas>
+
+<!-- ══════════════════════════════════════
+     INTRO
+══════════════════════════════════════ -->
+<section id="intro">
+
+  <!-- top-left flower -->
+  <svg class="deco" style="top:6%;left:4%;width:64px" viewBox="0 0 64 64" aria-hidden="true">
+    <circle cx="32" cy="32" r="9" fill="#f4a7b9"/>
+    <circle cx="32" cy="13" r="8" fill="#f4a7b9" opacity=".7"/>
+    <circle cx="32" cy="51" r="8" fill="#f4a7b9" opacity=".7"/>
+    <circle cx="13" cy="32" r="8" fill="#f4a7b9" opacity=".7"/>
+    <circle cx="51" cy="32" r="8" fill="#f4a7b9" opacity=".7"/>
+    <circle cx="18" cy="18" r="6" fill="#f4a7b9" opacity=".5"/>
+    <circle cx="46" cy="18" r="6" fill="#f4a7b9" opacity=".5"/>
+    <circle cx="18" cy="46" r="6" fill="#f4a7b9" opacity=".5"/>
+    <circle cx="46" cy="46" r="6" fill="#f4a7b9" opacity=".5"/>
+  </svg>
+
+  <!-- top-right star -->
+  <svg class="deco" style="top:10%;right:5%;width:52px" viewBox="0 0 52 52" aria-hidden="true">
+    <polygon points="26,3 31,19 48,19 34,30 39,46 26,36 13,46 18,30 4,19 21,19" fill="#c9b8e8"/>
+  </svg>
+
+  <!-- bottom-left heart -->
+  <svg class="deco" style="bottom:14%;left:6%;width:50px" viewBox="0 0 50 50" aria-hidden="true">
+    <path d="M25 42C25 42 5 29 5 16 5 9 11 5 17 7 20 8 23 11 25 14 27 11 30 8 33 7 39 5 45 9 45 16 45 29 25 42 25 42Z" fill="#e8738a"/>
+  </svg>
+
+  <!-- bottom-right bow -->
+  <svg class="deco" style="bottom:18%;right:5%;width:58px" viewBox="0 0 58 58" aria-hidden="true">
+    <ellipse cx="20" cy="29" rx="16" ry="10" fill="#f9c5a8" opacity=".8" transform="rotate(-18 20 29)"/>
+    <ellipse cx="38" cy="29" rx="16" ry="10" fill="#f9c5a8" opacity=".8" transform="rotate(18 38 29)"/>
+    <circle cx="29" cy="29" r="6" fill="#e8738a" opacity=".85"/>
+  </svg>
+
+  <!-- center-left small star -->
+  <svg class="deco" style="top:45%;left:2%;width:28px" viewBox="0 0 28 28" aria-hidden="true">
+    <polygon points="14,2 16,10 24,10 18,15 20,23 14,18 8,23 10,15 4,10 12,10" fill="#c9b8e8" opacity=".7"/>
+  </svg>
+
+  <div class="date-big">20.10</div>
+  <div class="date-sub">Ngày Phụ nữ Việt Nam</div>
+  <button class="btn-open" id="btn-open">🎁 Mở quà cho Huyền</button>
+</section>
+
+<!-- ══════════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════════ -->
+<div id="main-content">
+
+  <div class="top-bar">
+    <button class="btn-toggle" id="btn-toggle">🌸 Tắt hoa rơi</button>
+  </div>
+
+  <!-- ── Greeting card ── -->
+  <div class="main-card">
+    <div class="card-to">Gửi đến</div>
+    <div class="card-name">Trịnh Khánh Huyền 🌸</div>
+    <div class="card-pulse">💗</div>
+    <div class="card-body">
+      <p>Huyền ơi, hôm nay là 20/10 — ngày mà cả thế giới nhớ ra rằng phụ nữ là báu vật. Còn mình thì nhớ điều đó <em>mọi ngày</em>, nhưng hôm nay mới chịu làm trang web để nói ra 😄</p>
+      <p>Mình không giỏi nói những lời hoa mỹ, nhưng mình biết chắc một điều: có Khánh Huyền trong danh sách bạn thân là một trong những quyết định đúng đắn nhất mình từng có.</p>
+      <p>Chúc Huyền luôn cười nhiều hơn lo, ngủ đủ giấc hơn thức khuya, và quan trọng nhất — luôn là phiên bản của chính mình, không cần sửa gì thêm cả ✨</p>
+      <p>Năm nay vui nha, mình đặt cọc trước một buổi đi ăn cùng nhau 🍜</p>
+    </div>
+  </div>
+
+  <!-- ── 3 mini cards ── -->
+  <div class="cards-row">
+    <div class="mini-card" data-card>
+      <span class="mini-icon">✨</span>
+      <div class="mini-label">Lời khen thật</div>
+      <div class="mini-text">Huyền có kiểu cười rất dễ lây — đủ điều kiện làm ấm cả căn phòng mà không cần máy sưởi.</div>
+    </div>
+    <div class="mini-card" data-card>
+      <span class="mini-icon">🌿</span>
+      <div class="mini-label">Chúc sức khỏe</div>
+      <div class="mini-text">Uống đủ nước, ngủ đủ giấc, ít lo vặt — sức khỏe của Huyền là của quý, phải giữ cẩn thận nha.</div>
+    </div>
+    <div class="mini-card" data-card>
+      <span class="mini-icon">🍜</span>
+      <div class="mini-label">Hẹn đi ăn</div>
+      <div class="mini-text">Cuối tháng này, mình với Huyền chọn một quán ngon, order nhiều hơn cần thiết, ngồi tám đến tối nha?</div>
+    </div>
+  </div>
+
+  <!-- ── Message box ── -->
+  <div class="msg-card">
+    <div class="msg-heading">💌 Nhắn gì cho Huyền không?</div>
+    <div class="msg-hint">Viết gì cũng được — mình lưu lại cho Huyền đọc.</div>
+    <textarea class="msg-textarea" id="msg-input" placeholder="Huyền ơi..."></textarea>
+    <div class="msg-row">
+      <button class="btn-send"  id="btn-send">Gửi lời nhắn 💌</button>
+      <button class="btn-erase" id="btn-erase">Xóa &amp; viết lại</button>
+    </div>
+    <div class="msg-saved" id="msg-saved">
+      <div class="saved-label">💌 Lời nhắn đã lưu</div>
+      <div class="saved-text" id="saved-text"></div>
+    </div>
+  </div>
+
+  <footer>20.10 · làm riêng cho Trịnh Khánh Huyền 🌸</footer>
+</div>
+
+<script>
+  /* ────────────────────────────────
+     CANVAS PARTICLES
+  ──────────────────────────────── */
+  const canvas = document.getElementById('particle-canvas');
+  const ctx    = canvas.getContext('2d');
+  let particles  = [];
+  let rainActive = true;
+  let rainLoop   = null;
+
+  const ICONS = ['🌸','💗','🌺','💮','✨','🌷','💕','🎀'];
+
+  function resizeCanvas() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function spawnAt(x, y, emoji) {
+    particles.push({
+      x: x ?? Math.random() * canvas.width,
+      y: y ?? -24,
+      icon: emoji ?? ICONS[Math.floor(Math.random() * ICONS.length)],
+      size: 14 + Math.random() * 16,
+      vx:  (Math.random() - .5) * 1.6,
+      vy:  1.1 + Math.random() * 1.8,
+      rot: Math.random() * Math.PI * 2,
+      rv:  (Math.random() - .5) * .055,
+      life: 1
+    });
+  }
+
+  (function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles = particles.filter(p => p.life > 0.02);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      p.rot += p.rv;
+      p.life -= .005;
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.font = `${p.size}px serif`;
+      ctx.fillText(p.icon, -p.size / 2, p.size / 2);
+      ctx.restore();
+    }
+    requestAnimationFrame(loop);
+  })();
+
+  function startRain(durationMs) {
+    if (!rainActive) return;
+    clearInterval(rainLoop);
+    let elapsed = 0;
+    rainLoop = setInterval(() => {
+      if (!rainActive || elapsed >= durationMs) { clearInterval(rainLoop); return; }
+      for (let i = 0; i < 3; i++) spawnAt();
+      elapsed += 90;
+    }, 90);
+  }
+
+  /* ────────────────────────────────
+     OPEN BUTTON
+  ──────────────────────────────── */
+  document.getElementById('btn-open').addEventListener('click', () => {
+    startRain(4500);
+    setTimeout(() => {
+      document.getElementById('intro').style.display = 'none';
+      document.getElementById('main-content').classList.add('visible');
+      loadSaved();
+      startRain(2000);
+    }, 420);
+  });
+
+  /* ────────────────────────────────
+     TOGGLE RAIN
+  ──────────────────────────────── */
+  const btnToggle = document.getElementById('btn-toggle');
+  btnToggle.addEventListener('click', () => {
+    rainActive = !rainActive;
+    if (rainActive) {
+      btnToggle.textContent = '🌸 Tắt hoa rơi';
+      startRain(3000);
+    } else {
+      btnToggle.textContent = '🌸 Bật hoa rơi';
+      clearInterval(rainLoop);
+      particles = [];
+    }
+  });
+
+  /* ────────────────────────────────
+     MINI CARDS – bounce + burst
+  ──────────────────────────────── */
+  document.querySelectorAll('[data-card]').forEach(card => {
+    card.addEventListener('click', () => {
+      card.classList.remove('pop');
+      void card.offsetWidth;
+      card.classList.add('pop');
+      const r = card.getBoundingClientRect();
+      for (let i = 0; i < 6; i++) {
+        spawnAt(
+          r.left + Math.random() * r.width,
+          r.top  + Math.random() * r.height * .6,
+          ICONS[Math.floor(Math.random() * ICONS.length)]
+        );
+      }
+    });
+    card.addEventListener('animationend', () => card.classList.remove('pop'));
+  });
+
+  /* ────────────────────────────────
+     MESSAGE BOX
+  ──────────────────────────────── */
+  const KEY = 'kh_msg_2025';
+
+  function showSaved(text) {
+    document.getElementById('saved-text').textContent = text;
+    document.getElementById('msg-saved').classList.add('on');
+  }
+
+  function loadSaved() {
+    const v = localStorage.getItem(KEY);
+    if (v) { document.getElementById('msg-input').value = v; showSaved(v); }
+  }
+
+  document.getElementById('btn-send').addEventListener('click', () => {
+    const txt = document.getElementById('msg-input').value.trim();
+    if (!txt) return;
+    localStorage.setItem(KEY, txt);
+    showSaved(txt);
+    for (let i = 0; i < 10; i++) spawnAt();
+  });
+
+  document.getElementById('btn-erase').addEventListener('click', () => {
+    localStorage.removeItem(KEY);
+    document.getElementById('msg-input').value = '';
+    document.getElementById('msg-saved').classList.remove('on');
+    document.getElementById('saved-text').textContent = '';
+  });
+
+  /* ────────────────────────────────
+     CURSOR HEARTS (desktop only)
+  ──────────────────────────────── */
+  if (window.matchMedia('(pointer:fine)').matches) {
+    let lastT = 0;
+    document.addEventListener('mousemove', e => {
+      const now = Date.now();
+      if (now - lastT < 110) return;
+      lastT = now;
+      const el = document.createElement('span');
+      el.className = 'cursor-heart';
+      el.textContent = ['💗','✨','🌸'][Math.floor(Math.random() * 3)];
+      el.style.left = e.clientX + 'px';
+      el.style.top  = e.clientY + 'px';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1100);
+    });
+  }
+</script>
+</body>
+</html>
+
